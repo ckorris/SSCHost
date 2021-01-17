@@ -16,3 +16,5 @@ typedef struct SampleParams
 
 int CommandTypeBufferSize(enum CommandType cType);
 
+//For commands that request a true/false value.
+enum BooleanReturnValue{BadData = -2, Timeout = -1, False = 0, True = 1};

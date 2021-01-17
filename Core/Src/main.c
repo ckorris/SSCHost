@@ -22,11 +22,23 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+#include <stdio.h>
+
 #include "I2CNetworkCommon.h"
+#include "HostDispatchCommands.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+
+#define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
+#define SENSOR_PER_PERIPHERAL 4 //How many sensors are hooked up to each board/peripheral.
+#define ADC_BUFFER_SIZE 4000 //Size of the buffer filled by the ADC per cycle. May need to change when using multiple ADCs.
+#define CYCLE_COUNT 4//How many times we fill the buffer before stopping.
+
+#define PRIME_BLINK_COUNT 3
+#define PRIME_BLINK_TOTAL_TIME_MS 500
 
 /* USER CODE END PTD */
 
@@ -48,7 +60,9 @@ UART_HandleTypeDef huart3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
-static const uint8_t PER_ADDR = 0x01 << 1; // Use 8-bit address
+int isPrimed = 0;
+int isStarted = 0;
+int isFinished = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,9 +73,11 @@ static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
-void SendSampleParameters(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t deviceCount, uint16_t bufferSize, uint8_t cycleCount, uint8_t delayMS);
+//void SendSampleParameters(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t deviceCount, uint16_t bufferSize, uint8_t cycleCount, uint8_t delayMS);
 
 void PrintUARTMessage(UART_HandleTypeDef *huart, const char message[]);
+
+void BlinkLight(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int blinkCount, int totalTimeMS, GPIO_PinState endState);
 
 /* USER CODE END PFP */
 
@@ -105,12 +121,16 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
-  //Blue to indicate this is the host.
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-  //Make sure red is reset, so we know we're not a peripheral.
+  //Green to indicate this is the host.
+  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_SET);\
+  //Make sure other lights are reset, so we know we're not a peripheral and we know we're not primed.
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
 
-  GPIO_PinState userButtonState = HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin);
+  GPIO_PinState userButtonState = GPIO_PIN_RESET;
+
+  //Confirm we're on.
+  PrintUARTMessage(&huart3, "Host Initialized.");
 
   /* USER CODE END 2 */
 
@@ -119,34 +139,54 @@ int main(void)
   while (1)
   {
 
+	  if(isPrimed == 0)
+	  {
 		  GPIO_PinState state = HAL_GPIO_ReadPin(USER_Btn_GPIO_Port, USER_Btn_Pin);
 		  if(state != userButtonState)
 		  {
 			  if(state == GPIO_PIN_SET)
 			  {
-				  //We just pressed it down.
-				  //Flash the GPIO to show we did this.
-				  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-				  HAL_Delay(200);
-				  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+				  //Submit a message saying we're starting.
+				  PrintUARTMessage(&huart3, "\r\nPriming");
 
-				  //Actually send the request.
-				  buf[0] = 0x00; //Test.
-				  //HAL_I2C_Master_Transmit(&hi2c1, PER_ADDR, buf, 1, 10);
-				  SendSampleParameters(&hi2c1, PER_ADDR, 4, 400, 3, 50);
+				  //Blink light to indicate priming.
+				  BlinkLight(LD2_GPIO_Port, LD2_Pin, PRIME_BLINK_COUNT, PRIME_BLINK_TOTAL_TIME_MS, GPIO_PIN_SET);
 
-//SendSampleParameters(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t deviceCount, uint16_t bufferSize, uint8_t cycleCount, uint8_t delayMS)
+				  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
+				  {
+					  uint8_t address = i << 1; //Shifted over by one for I2C.
+					  SendSampleParamsCommand(&hi2c1, address, SENSOR_PER_PERIPHERAL, ADC_BUFFER_SIZE, CYCLE_COUNT, 0); //TODO: Manage delay times.
+				  }
 
-				  //ret = HAL_I2C_Master_Transmit_IT(&hi2c1, PER_ADDR, buf, 1);
-
-
-			  }
-			  else //state == GPIO_PIN_RESET
-			  {
-
+				  isPrimed = 1;
 			  }
 
 			  userButtonState = state;
+
+		  }
+	  }
+
+	  if(isPrimed == 1 && isStarted == 0)
+	  {
+		  GPIO_PinState state = HAL_GPIO_ReadPin(SoundDetectorGate_GPIO_Port, SoundDetectorGate_Pin);
+		  if(state == GPIO_PIN_SET)
+		  {
+			  //Turn on red LED to indicate we're dispatching.
+			  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+
+			  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
+			  {
+				  uint8_t address = i << 1; //Shifted over by one for I2C.
+				  BeginSamplingCommand(&hi2c1, address);
+			  }
+			  isStarted = 1;
+			  //Temporary. Allow another sent packet and turn off blue prime indicator LED.
+			  //Wait a short time to simulate compute time for other tasks we'll add in later.
+			  HAL_Delay(300);
+			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+			  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
+			  isPrimed = 0;
+			  isStarted = 0;
 		  }
 	  }
 
@@ -155,7 +195,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
-
+}
 
 /**
   * @brief System Clock Configuration
@@ -349,6 +389,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
@@ -387,6 +428,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : SoundDetectorGate_Pin */
+  GPIO_InitStruct.Pin = SoundDetectorGate_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(SoundDetectorGate_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : RMII_TXD1_Pin */
   GPIO_InitStruct.Pin = RMII_TXD1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
@@ -420,32 +467,25 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void SendSampleParameters(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t deviceCount, uint16_t bufferSize, uint8_t cycleCount, uint8_t delayMS)
-{
-	//Tell the peripheral that we're about to send instructions for sample parameters.
-	uint8_t commandBuf[1] = { SendSampleParams };
-	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, commandBuf, 1, 10);
-
-	//Make a packet that we'll send over.
-	sampleParams packet;
-
-	packet.DeviceCount = deviceCount;
-	packet.BufferSize = bufferSize;
-	packet.CycleCount = cycleCount;
-	packet.DelayMS = delayMS;
-
-	uint8_t* packetAsUint;//[CommandTypeBufferSize(SendSampleParams)];
-	packetAsUint = (uint8_t*)&packet;
-	//Send it in blocking mode, so we get an answer before moving on and avoid getting our streams crossed.
-	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, &packet, CommandTypeBufferSize(SendSampleParams), 10);
-}
-
 void PrintUARTMessage(UART_HandleTypeDef *huart, const char message[])
 {
-
 	HAL_UART_Transmit(huart, (uint8_t*)message, strlen(message), 10);
 	char newLine[3] = "\r\n";
 	HAL_UART_Transmit(huart, (uint8_t*)newLine, 2, 10);
+}
+
+void BlinkLight(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin, int blinkCount, int totalTimeMS, GPIO_PinState endState)
+{
+	int timePerHalfBlink = totalTimeMS / blinkCount / 2;
+	GPIO_PinState oppositeOfEndState = endState == GPIO_PIN_RESET ? GPIO_PIN_SET : GPIO_PIN_RESET;
+
+	for(int i = 0; i < blinkCount; i++)
+	{
+		HAL_GPIO_WritePin(GPIOx, GPIO_Pin, oppositeOfEndState);
+		HAL_Delay(timePerHalfBlink);
+		HAL_GPIO_WritePin(GPIOx, GPIO_Pin, endState);
+		HAL_Delay(timePerHalfBlink);
+	}
 }
 
 /* USER CODE END 4 */
