@@ -15,7 +15,7 @@ enum BooleanReturnValue ReceiveFinishedStatus(I2C_HandleTypeDef *hi2c, uint8_t p
 		return -1;
 	}
 
-	uint8_t result = resultBuf[1];
+	uint8_t result = resultBuf[0];
 	if(result == 1)
 	{
 		return 1;

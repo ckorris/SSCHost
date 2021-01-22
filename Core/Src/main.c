@@ -40,6 +40,10 @@
 #define PRIME_BLINK_COUNT 3
 #define PRIME_BLINK_TOTAL_TIME_MS 500
 
+#define SAMPLE_TO_READ_TIME_MS 300 //How long after we send the signal to sample do we start checking if the peripherals are ready to send.
+
+#define NOT_READY_ADDITIONAL_DELAY_MS 50 //When we ask if a peripheral is done sampling, and it say no, how long we wait before asking again.
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -180,11 +184,47 @@ int main(void)
 				  BeginSamplingCommand(&hi2c1, address);
 			  }
 			  isStarted = 1;
-			  //Temporary. Allow another sent packet and turn off blue prime indicator LED.
-			  //Wait a short time to simulate compute time for other tasks we'll add in later.
-			  HAL_Delay(300);
+			  //Allow another sent packet and turn off blue prime indicator LED.
+			  //Wait a short time to make it so the samples are likely ready (but we'll still be asking before receiving).
+			  HAL_Delay(SAMPLE_TO_READ_TIME_MS);
 			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 			  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
+
+			  //Go through each peripheral and wait for it to be ready, then receive sample.
+			  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
+			  {
+				  uint8_t address = i << 1; //Shifted over by one for I2C.
+
+				  //Wait for the device to be ready.
+				  enum BooleanReturnValue isReady = False;
+				  while(isReady == False)
+				  {
+					  isReady = CheckFinishedCommand(&hi2c1, address);
+					  //TODO: Some kind of timeout if it's not done after a long time maybe?
+				  }
+
+				  //Now it's just something other than "not ready" so handle other situations.
+				  if(isReady == BadData || isReady == Timeout)
+				  {
+					  //Flash red light in a distinct pattern to show there was an error here.
+					  for(int b = 0; b < 3; b++)
+					  {
+						  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+						  HAL_Delay(120);
+						  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
+						  HAL_Delay(80);
+					  }
+					  continue; //Skip to the next peripheral.
+				  }
+
+				  //If we're here, the device said it's ready to send back the data. So get it.
+				  int x = 0; //Temp for breakpoints only.
+				  x++;
+
+			  }
+
+
+			  //TODO: These need to go somewhere at the end.
 			  isPrimed = 0;
 			  isStarted = 0;
 		  }
