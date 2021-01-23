@@ -225,34 +225,39 @@ int main(void)
 
 			  }
 
+
+
 			  //TEMP: Make fake packet to test the PC receiving it.
 			  for(int i = 0; i < 4; i++) //IDs
 			  {
 				  for(int j = 0; j < 8; j++)
 				  {
 				  samplePacketHeader header;
-				  header.DeviceID = i;
+				  header.DeviceID = i * 8 + j;
 				  header.SampleID = i * 8 + j;
-				  header.startTimeUs = 0;
-				  header.endTimeUs = 1000 * i;
+				  header.startTimeUs = i * 1000;
+				  header.endTimeUs = (i + 1) * 1000;;
 				  header.AnalogInPinCount = 4;
 				  header.SampleCount = 500;
 
 				  //uint16_t* samples[500];
 				  //void* memory = malloc(sizeof(short));
-				  uint16_t* samples = (uint16_t*)calloc(sizeof(uint16_t), 500);
+				  uint16_t* samples = (uint16_t*)malloc(sizeof(uint16_t)* 500);
+
 
 				  for(int s = 0; s < 500; s++)
 				  {
-					  samples[s] = 5;
+					  samples[s] = i * 8 + j;
 				  }
+
 
 				  TransmitSamplePacketToPC(&huart3, header, samples);
 
-				  //free(samples);
+				  free(samples);
 
 				  }
 			  }
+
 
 
 			  //TODO: These need to go somewhere at the end.

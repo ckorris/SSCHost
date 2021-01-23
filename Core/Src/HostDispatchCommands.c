@@ -83,7 +83,7 @@ void TransmitSamplePacketToPC(UART_HandleTypeDef *huart, samplePacketHeader head
 
 	for(int i = 0; i < header.SampleCount; i += TRANSMIT_COUNT) //We do this dance to prevent trying to send more data than we can fit.
 	{
-		int thisCycleCount = ((long)TRANSMIT_COUNT > header.SampleCount - i) ? (long)TRANSMIT_COUNT : header.SampleCount - i; //Could break this up but this is readable.
+		int thisCycleCount = ((long)TRANSMIT_COUNT < header.SampleCount - i) ? (long)TRANSMIT_COUNT : header.SampleCount - i; //Could break this up but this is readable.
 		HAL_UART_Transmit(huart, start, sizeof(uint16_t) * thisCycleCount, HAL_MAX_DELAY);
 		start += sizeof(uint16_t) * thisCycleCount;
 	}
