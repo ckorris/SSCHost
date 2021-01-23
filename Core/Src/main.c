@@ -24,9 +24,11 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "I2CNetworkCommon.h"
 #include "HostDispatchCommands.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,7 +100,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	//HAL_StatusTypeDef ret;
-	uint8_t buf[1];
+	//uint8_t buf[1];
 
   /* USER CODE END 1 */
 
@@ -197,6 +199,7 @@ int main(void)
 
 				  //Wait for the device to be ready.
 				  enum BooleanReturnValue isReady = False;
+
 				  while(isReady == False)
 				  {
 					  isReady = CheckFinishedCommand(&hi2c1, address);
@@ -218,9 +221,37 @@ int main(void)
 				  }
 
 				  //If we're here, the device said it's ready to send back the data. So get it.
-				  int x = 0; //Temp for breakpoints only.
-				  x++;
+				  //TODO: Have the peripheral send each packet separately instead of one big lump.
 
+			  }
+
+			  //TEMP: Make fake packet to test the PC receiving it.
+			  for(int i = 0; i < 4; i++) //IDs
+			  {
+				  for(int j = 0; j < 8; j++)
+				  {
+				  samplePacketHeader header;
+				  header.DeviceID = i;
+				  header.SampleID = i * 8 + j;
+				  header.startTimeUs = 0;
+				  header.endTimeUs = 1000 * i;
+				  header.AnalogInPinCount = 4;
+				  header.SampleCount = 500;
+
+				  //uint16_t* samples[500];
+				  //void* memory = malloc(sizeof(short));
+				  uint16_t* samples = (uint16_t*)calloc(sizeof(uint16_t), 500);
+
+				  for(int s = 0; s < 500; s++)
+				  {
+					  samples[s] = 5;
+				  }
+
+				  TransmitSamplePacketToPC(&huart3, header, samples);
+
+				  //free(samples);
+
+				  }
 			  }
 
 

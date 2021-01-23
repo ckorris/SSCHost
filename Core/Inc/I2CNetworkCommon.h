@@ -6,6 +6,9 @@
 
 enum CommandType{SendSampleParams, BeginSampling, CheckFinished, RequestData, Reset};
 
+//For commands that request a true/false value.
+enum BooleanReturnValue{BadData = -2, Timeout = -1, False = 0, True = 1};
+
 typedef struct SampleParams
 {
 	uint8_t DeviceCount;
@@ -16,5 +19,16 @@ typedef struct SampleParams
 
 int CommandTypeBufferSize(enum CommandType cType);
 
-//For commands that request a true/false value.
-enum BooleanReturnValue{BadData = -2, Timeout = -1, False = 0, True = 1};
+
+typedef struct SamplePacketHeader
+{
+	int DeviceID;
+	int SampleID;
+	int32_t startTimeUs;
+	int32_t endTimeUs;
+
+	int AnalogInPinCount;
+
+	int32_t SampleCount;
+
+} samplePacketHeader;

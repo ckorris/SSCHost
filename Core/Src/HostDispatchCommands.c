@@ -3,6 +3,9 @@
 #include "HostDispatchCommands.h"
 #include "I2CNetworkCommon.h"
 
+
+//I2C
+
 //Forward declarations for methods not in header file.
 void SendCommandEnumOnly_Blocking(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, enum CommandType cType);
 void SendCommandEnumOnly_NonBlocking(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, enum CommandType cType);
@@ -60,5 +63,40 @@ void SendCommandEnumOnly_NonBlocking(I2C_HandleTypeDef *hi2c, uint8_t peripheral
 	uint8_t commandBuf[1] = { cType };
 	HAL_I2C_Master_Transmit_IT(hi2c, peripheralAddress, commandBuf, 1);
 }
+
+//Serial
+
+const uint32_t MAGIC_VALUES[3] = {0x0, 0xFFFFFFFF, 0x7A7ABFBF}; //Values used to validate a sample packet on the PC.
+
+const int TRANSMIT_COUNT = INT16_MAX; //Max samples that can be read and sent to PC via serial in a single operation.
+
+void TransmitSamplePacketToPC(UART_HandleTypeDef *huart, samplePacketHeader header, uint16_t *samples)
+{
+	//Give the specific sequence that validates that this is the start of a packet, not additional data.
+	HAL_UART_Transmit(huart, (uint8_t*)MAGIC_VALUES, sizeof(MAGIC_VALUES), HAL_MAX_DELAY);
+
+	//Send header information.
+	HAL_UART_Transmit(huart, (uint8_t*)&header, sizeof(samplePacketHeader), HAL_MAX_DELAY);
+
+	//Send samples.
+	uint8_t* start = (uint8_t*)samples; //Pointer to start of samples.
+
+	for(int i = 0; i < header.SampleCount; i += TRANSMIT_COUNT) //We do this dance to prevent trying to send more data than we can fit.
+	{
+		int thisCycleCount = ((long)TRANSMIT_COUNT > header.SampleCount - i) ? (long)TRANSMIT_COUNT : header.SampleCount - i; //Could break this up but this is readable.
+		HAL_UART_Transmit(huart, start, sizeof(uint16_t) * thisCycleCount, HAL_MAX_DELAY);
+		start += sizeof(uint16_t) * thisCycleCount;
+	}
+
+
+}
+
+
+
+
+
+
+
+
 
 
