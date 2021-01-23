@@ -12,9 +12,9 @@ void BeginSamplingCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress);
 
 enum BooleanReturnValue CheckFinishedCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress); //Returns 1 if ready, 0 otherwise. May need to check for individual packets.
 
-void RequestDataCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t* dataBuffer);
+void RequestSampleHeaderCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, int sampleID, samplePacketHeader *header);
 
-void ResetCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress);
+void RequestSampleDataCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, int sampleID, uint8_t* dataBuffer);
 
 
 void TransmitSamplePacketToPC(UART_HandleTypeDef *huart, samplePacketHeader header, uint16_t *samples);

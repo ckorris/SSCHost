@@ -30,3 +30,14 @@ enum BooleanReturnValue ReceiveFinishedStatus(I2C_HandleTypeDef *hi2c, uint8_t p
 	}
 }
 
+samplePacketHeader ReceiveSamplePacketHeader(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress)
+{
+	uint16_t packetSize = sizeof(samplePacketHeader);
+	uint8_t packetBuf[packetSize];
+
+	HAL_I2C_Master_Receive(hi2c, peripheralAddress, packetBuf, packetSize, COMMAND_RECEIVE_HEADER_TIMEOUT_MS);
+
+	samplePacketHeader newHeader = *((samplePacketHeader*)&packetBuf);
+	return newHeader;
+}
+

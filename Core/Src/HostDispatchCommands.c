@@ -1,6 +1,7 @@
 #include<stdio.h>
 
 #include "HostDispatchCommands.h"
+#include "HostReceiveCommands.h"
 #include "I2CNetworkCommon.h"
 
 
@@ -25,7 +26,7 @@ void SendSampleParamsCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress,
 	packet.DelayMS = delayMS;
 
 	//Send it in blocking mode, so we get an answer before moving on and avoid getting our streams crossed.
-	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, &packet, CommandTypeBufferSize(SendSampleParams), 10);
+	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, &packet, sizeof(sampleParams), 10);
 }
 
 
@@ -41,14 +42,22 @@ enum BooleanReturnValue CheckFinishedCommand(I2C_HandleTypeDef *hi2c, uint8_t pe
 	return ReceiveFinishedStatus(hi2c, peripheralAddress);
 }
 
-void RequestDataCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t* dataBuffer)
+void RequestSampleHeaderCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, int sampleID, samplePacketHeader* header)
 {
-	SendCommandEnumOnly_Blocking(hi2c, peripheralAddress, RequestData);
+	SendCommandEnumOnly_Blocking(hi2c, peripheralAddress, RequestSampleHeader);
+
+	//Send the ID of the sample that we want the header for.
+	uint8_t idBuf[1] = { sampleID };
+	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, idBuf, 1, 10); //Timeout is arbitrary.
+
+	samplePacketHeader newHeader = ReceiveSamplePacketHeader(hi2c, peripheralAddress);
+	*header = newHeader;
+
 }
 
-void ResetCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress)
+void RequestSampleDataCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, int sampleID, uint8_t* dataBuffer)
 {
-	SendCommandEnumOnly_Blocking(hi2c, peripheralAddress, Reset);
+	SendCommandEnumOnly_Blocking(hi2c, peripheralAddress, RequestSampleData);
 }
 
 

@@ -192,6 +192,10 @@ int main(void)
 			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 			  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
 
+			  //Calculate how many samples to get per device.
+			  //Technically could be a const but whatever.
+			  int perDeviceSampleCount = SENSOR_PER_PERIPHERAL * CYCLE_COUNT;
+
 			  //Go through each peripheral and wait for it to be ready, then receive sample.
 			  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
 			  {
@@ -221,42 +225,53 @@ int main(void)
 				  }
 
 				  //If we're here, the device said it's ready to send back the data. So get it.
-				  //TODO: Have the peripheral send each packet separately instead of one big lump.
+
+				  //Get each sample header and sample individually.
+				  for(int i = 0; i < perDeviceSampleCount; i++)
+				  {
+					  samplePacketHeader* header;
+					  RequestSampleHeaderCommand(&hi2c1, address, i, header);
+
+					  int x = 0;
+					  x++;
+				  }
+
 
 			  }
 
 
-
+			  /*
 			  //TEMP: Make fake packet to test the PC receiving it.
 			  for(int i = 0; i < 4; i++) //IDs
 			  {
 				  for(int j = 0; j < 8; j++)
 				  {
-				  samplePacketHeader header;
-				  header.DeviceID = i * 8 + j;
-				  header.SampleID = i * 8 + j;
-				  header.startTimeUs = i * 1000;
-				  header.endTimeUs = (i + 1) * 1000;;
-				  header.AnalogInPinCount = 4;
-				  header.SampleCount = 500;
+					  samplePacketHeader header;
+					  header.DeviceID = i * 8 + j;
+					  header.SampleID = i * 8 + j;
+					  header.startTimeUs = i * 1000000;
+					  header.endTimeUs = (i + 1) * 1000000;;
+					  header.AnalogInPinCount = 4;
+					  header.SampleCount = 500;
 
-				  //uint16_t* samples[500];
-				  //void* memory = malloc(sizeof(short));
-				  uint16_t* samples = (uint16_t*)malloc(sizeof(uint16_t)* 500);
-
-
-				  for(int s = 0; s < 500; s++)
-				  {
-					  samples[s] = i * 8 + j;
-				  }
+					  //uint16_t* samples[500];
+					  //void* memory = malloc(sizeof(short));
+					  uint16_t* samples = (uint16_t*)malloc(sizeof(uint16_t)* 500);
 
 
-				  TransmitSamplePacketToPC(&huart3, header, samples);
+					  for(int s = 0; s < 500; s++)
+					  {
+						  samples[s] = i * 8 + j;
+					  }
 
-				  free(samples);
+
+					  TransmitSamplePacketToPC(&huart3, header, samples);
+
+					  free(samples);
 
 				  }
 			  }
+			  */
 
 
 

@@ -4,7 +4,14 @@
 
 
 
-enum CommandType{SendSampleParams, BeginSampling, CheckFinished, RequestData, Reset};
+enum CommandType
+{
+	SendSampleParams,
+	BeginSampling,
+	CheckFinished,
+	RequestSampleHeader,
+	RequestSampleData
+};
 
 //For commands that request a true/false value.
 enum BooleanReturnValue{BadData = -2, Timeout = -1, False = 0, True = 1};
@@ -17,7 +24,6 @@ typedef struct SampleParams
 	uint8_t DelayMS;
 } sampleParams;
 
-int CommandTypeBufferSize(enum CommandType cType);
 
 
 typedef struct SamplePacketHeader
