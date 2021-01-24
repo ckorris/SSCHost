@@ -6,12 +6,12 @@
 
 #define COMMAND_RECEIVE_READY_TIMEOUT_MS 5000 //When checking if sample is done on device (single uint8_t) how long to wait on timeout.
 
-#define COMMAND_RECEIVE_HEADER_TIMEOUT_MS 5000 //When asking for a sample header, how long to wait on timeout.
+#define COMMAND_RECEIVE_HEADER_TIMEOUT_MS HAL_MAX_DELAY //When asking for a sample header, how long to wait on timeout.
 
-#define COMMAND_RECEIVE_DATA_TIMEOUT_MS 10000 //When asking for a sample data, how long to wait on timeout.
+#define COMMAND_RECEIVE_DATA_TIMEOUT_MS HAL_MAX_DELAY //When asking for a sample data, how long to wait on timeout.
 
 enum BooleanReturnValue ReceiveFinishedStatus(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress); //1 for true, 0 for false, -1 for error. TODO: Make enum.
 
-samplePacketHeader* ReceiveSamplePacketHeader(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress);
+void ReceiveSamplePacketHeader(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, samplePacketHeader* header);
 
-uint16_t* ReceiveSamplePacketData(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint16_t samplesPerDevice);
+void ReceiveSamplePacketData(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint16_t samplesPerDevice, uint16_t* dataBuffer);

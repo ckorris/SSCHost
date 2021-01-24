@@ -31,7 +31,7 @@ enum BooleanReturnValue ReceiveFinishedStatus(I2C_HandleTypeDef *hi2c, uint8_t p
 	}
 }
 
-samplePacketHeader* ReceiveSamplePacketHeader(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress)
+void ReceiveSamplePacketHeader(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, samplePacketHeader* header)
 {
 	uint16_t packetSize = sizeof(samplePacketHeader);
 	uint8_t packetBuf[packetSize];
@@ -40,16 +40,17 @@ samplePacketHeader* ReceiveSamplePacketHeader(I2C_HandleTypeDef *hi2c, uint8_t p
 	HAL_I2C_Master_Receive(hi2c, peripheralAddress, packetBuf, packetSize, COMMAND_RECEIVE_HEADER_TIMEOUT_MS);
 
 	samplePacketHeader newHeader = *((samplePacketHeader*)&packetBuf);
-	return &newHeader;
+	*header = newHeader;
 }
 
-uint16_t* ReceiveSamplePacketData(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint16_t samplesPerDevice)
+void ReceiveSamplePacketData(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint16_t samplesPerDevice, uint16_t* dataBuffer)
 {
 
-	uint16_t* dataBuffer = malloc(sizeof(uint16_t) * samplesPerDevice); //Don't forget to free this somewhere.
-	HAL_I2C_Master_Receive(hi2c, peripheralAddress, (uint8_t*)dataBuffer, samplesPerDevice, COMMAND_RECEIVE_DATA_TIMEOUT_MS);
+	//uint16_t* dataBuffer = malloc(sizeof(uint16_t) * samplesPerDevice); //Don't forget to free this somewhere.
+	//HAL_I2C_Master_Receive(hi2c, peripheralAddress, (uint8_t*)dataBuffer, samplesPerDevice, COMMAND_RECEIVE_DATA_TIMEOUT_MS);
+	HAL_I2C_Master_Receive(hi2c, peripheralAddress, (uint8_t*)dataBuffer, sizeof(uint16_t) * samplesPerDevice, COMMAND_RECEIVE_DATA_TIMEOUT_MS);
 
-	return dataBuffer;
+	//return dataBuffer;
 }
 
 

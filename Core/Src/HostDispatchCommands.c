@@ -48,10 +48,11 @@ void RequestSampleHeaderCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddre
 
 	//Send the ID of the sample that we want the header for.
 	uint8_t idBuf[1] = { sampleID };
-	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, idBuf, 1, 10); //Timeout is arbitrary.
+	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, idBuf, 1, HAL_MAX_DELAY); //Timeout is arbitrary.
 
-	samplePacketHeader newHeader = ReceiveSamplePacketHeader(hi2c, peripheralAddress);
-	*header = newHeader;
+	//samplePacketHeader newHeader = ReceiveSamplePacketHeader(hi2c, peripheralAddress);
+	ReceiveSamplePacketHeader(hi2c, peripheralAddress, header);
+	//*header = newHeader;
 
 }
 
@@ -61,11 +62,12 @@ void RequestSampleDataCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress
 
 	//Send the ID of the sample that we want the header for.
 	uint8_t idBuf[1] = { sampleID };
-	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, idBuf, 1, 10); //Timeout is arbitrary.
+	HAL_I2C_Master_Transmit(hi2c, peripheralAddress, idBuf, 1, HAL_MAX_DELAY); //Timeout is arbitrary.
 
-	uint16_t* newData = ReceiveSamplePacketData(hi2c, peripheralAddress, samplesPerDevice);
+	//uint16_t* newData = ReceiveSamplePacketData(hi2c, peripheralAddress, samplesPerDevice);
+	ReceiveSamplePacketData(hi2c, peripheralAddress, samplesPerDevice, dataBuffer);
 
-	dataBuffer = newData;
+	//dataBuffer = newData;
 }
 
 

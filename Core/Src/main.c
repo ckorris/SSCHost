@@ -226,9 +226,13 @@ int main(void)
 
 				  //If we're here, the device said it's ready to send back the data. So get it.
 
+				  //Wait a short amount of time for the listener to activate again. I guess.
+				  HAL_Delay(10);
+
 				  //Declare buffers that we can reuse.
-				  samplePacketHeader* header = malloc(sizeof(samplePacketHeader));
-				  uint16_t* data = malloc(sizeof(uint16_t) * samplesPerPacket);
+				  //TODO: Change to malloc, but this is easier to debug.
+				  samplePacketHeader* header = calloc(sizeof(samplePacketHeader), 1);
+				  uint16_t* data = calloc(sizeof(uint16_t), samplesPerPacket);
 
 				  //Get each sample header and sample individually.
 				  for(int j = 0; j < 2; j++)
@@ -236,12 +240,12 @@ int main(void)
 					  //Get the header.
 					  RequestSampleHeaderCommand(&hi2c1, address, j, header);
 
-					  HAL_Delay(20); //Let it get back to the main loop.
+					  HAL_Delay(10); //Let it get back to the main loop.
 
 					  //Get the actual data.
 					  RequestSampleDataCommand(&hi2c1, address, samplesPerPacket, j, data); //i for now, just to get the samples from the first cycle.
 
-					  //TransmitSamplePacketToPC(&huart3, *header, data);
+					  TransmitSamplePacketToPC(&huart3, *header, data);
 
 					  //Just for debug.
 					  uint16_t debugData[samplesPerPacket];
