@@ -195,7 +195,7 @@ int main(void)
 			  //Calculate how many samples to get per device.
 			  //Technically could be a const but whatever.
 			  int perDeviceSampleCount = SENSOR_PER_PERIPHERAL * CYCLE_COUNT;
-
+			  int samplesPerPacket = ADC_BUFFER_SIZE / SENSOR_PER_PERIPHERAL;
 			  //Go through each peripheral and wait for it to be ready, then receive sample.
 			  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
 			  {
@@ -226,15 +226,37 @@ int main(void)
 
 				  //If we're here, the device said it's ready to send back the data. So get it.
 
-				  //Get each sample header and sample individually.
-				  for(int i = 0; i < perDeviceSampleCount; i++)
-				  {
-					  samplePacketHeader* header;
-					  RequestSampleHeaderCommand(&hi2c1, address, i, header);
+				  //Declare buffers that we can reuse.
+				  samplePacketHeader* header = malloc(sizeof(samplePacketHeader));
+				  uint16_t* data = malloc(sizeof(uint16_t) * samplesPerPacket);
 
-					  int x = 0;
-					  x++;
+				  //Get each sample header and sample individually.
+				  for(int j = 0; j < 2; j++)
+				  {
+					  //Get the header.
+					  RequestSampleHeaderCommand(&hi2c1, address, j, header);
+
+					  HAL_Delay(20); //Let it get back to the main loop.
+
+					  //Get the actual data.
+					  RequestSampleDataCommand(&hi2c1, address, samplesPerPacket, j, data); //i for now, just to get the samples from the first cycle.
+
+					  //TransmitSamplePacketToPC(&huart3, *header, data);
+
+					  //Just for debug.
+					  uint16_t debugData[samplesPerPacket];
+					  for(int d = 0; d < samplesPerPacket; d++)
+					  {
+						  debugData[d] = data[d];
+					  }
+
+					  HAL_Delay(20); //Let it get back to the main loop.
+
+
 				  }
+
+				  free(header);
+				  free(data);
 
 
 			  }

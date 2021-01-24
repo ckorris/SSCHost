@@ -14,7 +14,7 @@ enum BooleanReturnValue CheckFinishedCommand(I2C_HandleTypeDef *hi2c, uint8_t pe
 
 void RequestSampleHeaderCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, int sampleID, samplePacketHeader *header);
 
-void RequestSampleDataCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, int sampleID, uint8_t* dataBuffer);
+void RequestSampleDataCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint16_t samplesPerDevice, int sampleID, uint16_t* dataBuffer);
 
 
 void TransmitSamplePacketToPC(UART_HandleTypeDef *huart, samplePacketHeader header, uint16_t *samples);
