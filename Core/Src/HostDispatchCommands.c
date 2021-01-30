@@ -12,7 +12,7 @@ void SendCommandEnumOnly_Blocking(I2C_HandleTypeDef *hi2c, uint8_t peripheralAdd
 void SendCommandEnumOnly_NonBlocking(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, enum CommandType cType);
 
 //Blocking. Could be non-blocking but it's not time-critical really, so not worth the complexity at this stage.
-void SendSampleParamsCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t deviceCount, uint16_t bufferSize, uint8_t cycleCount, uint8_t delayMS)
+void SendSampleParamsCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t cycleCount, uint8_t delayMS)
 {
 	//Tell the peripheral that we're about to send instructions for sample parameters.
 	SendCommandEnumOnly_Blocking(hi2c, peripheralAddress, SendSampleParams);
@@ -20,8 +20,8 @@ void SendSampleParamsCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress,
 	//Make a packet that we'll send over.
 	sampleParams packet;
 
-	packet.DeviceCount = deviceCount;
-	packet.BufferSize = bufferSize;
+	//packet.DeviceCount = deviceCount;
+	//packet.BufferSize = bufferSize;
 	packet.CycleCount = cycleCount;
 	packet.DelayMS = delayMS;
 
@@ -40,6 +40,14 @@ enum BooleanReturnValue CheckFinishedCommand(I2C_HandleTypeDef *hi2c, uint8_t pe
 	SendCommandEnumOnly_Blocking(hi2c, peripheralAddress, CheckFinished);
 
 	return ReceiveFinishedStatus(hi2c, peripheralAddress);
+}
+
+uint16_t RequestTotalPacketCountCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress)
+{
+	SendCommandEnumOnly_Blocking(hi2c, peripheralAddress, RequestTotalPacketCount);
+
+	uint16_t totalPacketCount = ReceiveTotalPacketCount(hi2c, peripheralAddress);
+	return totalPacketCount; //Could just return directly but this makes it easier to debug.
 }
 
 void RequestSampleHeaderCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, int sampleID, samplePacketHeader* header)

@@ -31,6 +31,22 @@ enum BooleanReturnValue ReceiveFinishedStatus(I2C_HandleTypeDef *hi2c, uint8_t p
 	}
 }
 
+uint16_t ReceiveTotalPacketCount(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress)
+{
+	HAL_StatusTypeDef returnStatus;
+
+	uint8_t resultBuf[sizeof(uint16_t)];
+	returnStatus = HAL_I2C_Master_Receive(hi2c, peripheralAddress, resultBuf, sizeof(uint16_t), COMMAND_RECEIVE_COUNT_TIMEOUT_MS);
+
+	if(returnStatus != HAL_OK) //Error. Skip this one.
+ 	{
+		return 0;
+	}
+
+	uint16_t totalPacketCount = (uint16_t)resultBuf[0]; //Could just return directly but this makes it easier to debug.
+	return totalPacketCount;
+}
+
 void ReceiveSamplePacketHeader(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, samplePacketHeader* header)
 {
 	uint16_t packetSize = sizeof(samplePacketHeader);

@@ -9,6 +9,7 @@ enum CommandType
 	SendSampleParams,
 	BeginSampling,
 	CheckFinished,
+	RequestTotalPacketCount,
 	RequestSampleHeader,
 	RequestSampleData
 };
@@ -18,12 +19,9 @@ enum BooleanReturnValue{BadData = -2, Timeout = -1, False = 0, True = 1};
 
 typedef struct SampleParams
 {
-	uint8_t DeviceCount;
-	uint16_t BufferSize;
 	uint8_t CycleCount;
 	uint8_t DelayMS;
 } sampleParams;
-
 
 
 typedef struct SamplePacketHeader

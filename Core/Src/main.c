@@ -35,9 +35,7 @@
 /* USER CODE BEGIN PTD */
 
 #define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
-#define SENSOR_PER_PERIPHERAL 4 //How many sensors are hooked up to each board/peripheral.
-#define ADC_BUFFER_SIZE 4000 //Size of the buffer filled by the ADC per cycle. May need to change when using multiple ADCs.
-#define CYCLE_COUNT 4//How many times we fill the buffer before stopping.
+#define CYCLE_COUNT 2//How many times we fill the buffer before stopping.
 
 #define PRIME_BLINK_COUNT 3
 #define PRIME_BLINK_TOTAL_TIME_MS 500
@@ -161,7 +159,7 @@ int main(void)
 				  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
 				  {
 					  uint8_t address = i << 1; //Shifted over by one for I2C.
-					  SendSampleParamsCommand(&hi2c1, address, SENSOR_PER_PERIPHERAL, ADC_BUFFER_SIZE, CYCLE_COUNT, 0); //TODO: Manage delay times.
+					  SendSampleParamsCommand(&hi2c1, address, CYCLE_COUNT, 0); //TODO: Manage delay times.
 				  }
 
 				  isPrimed = 1;
@@ -194,8 +192,8 @@ int main(void)
 
 			  //Calculate how many samples to get per device.
 			  //Technically could be a const but whatever.
-			  int perDeviceSampleCount = SENSOR_PER_PERIPHERAL * CYCLE_COUNT;
-			  int samplesPerPacket = ADC_BUFFER_SIZE / SENSOR_PER_PERIPHERAL;
+			  //int perDeviceSampleCount = SENSOR_PER_PERIPHERAL * CYCLE_COUNT;
+			  //int samplesPerPacket = ADC_BUFFER_SIZE / SENSOR_PER_PERIPHERAL;
 			  //Go through each peripheral and wait for it to be ready, then receive sample.
 			  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
 			  {
@@ -207,7 +205,6 @@ int main(void)
 				  while(isReady == False)
 				  {
 					  isReady = CheckFinishedCommand(&hi2c1, address);
-					  //TODO: Some kind of timeout if it's not done after a long time maybe?
 				  }
 
 				  //Now it's just something other than "not ready" so handle other situations.
@@ -229,16 +226,23 @@ int main(void)
 				  //Wait a short amount of time for the listener to activate again. I guess.
 				  HAL_Delay(10);
 
-				  //Declare buffers that we can reuse.
-				  //TODO: Change to malloc, but this is easier to debug.
-				  samplePacketHeader* header = calloc(sizeof(samplePacketHeader), 1);
-				  uint16_t* data = calloc(sizeof(uint16_t), samplesPerPacket);
+				  //Get total number of packets that we need to receive.
+				  uint16_t totalPackets = RequestTotalPacketCountCommand(&hi2c1, address);
+
+				  if(totalPackets == 0)
+				  {
+					  continue; //In the future, we could log an error here or something.
+				  }
 
 				  //Get each sample header and sample individually.
-				  for(int j = 0; j < 2; j++)
+				  for(int j = 0; j < totalPackets; j++) //TODO: This is only first four.
 				  {
 					  //Get the header.
+					  samplePacketHeader* header = calloc(sizeof(samplePacketHeader), 1);
 					  RequestSampleHeaderCommand(&hi2c1, address, j, header);
+
+					  uint16_t samplesPerPacket = header->SampleCount;
+					  uint16_t* data = calloc(sizeof(uint16_t), samplesPerPacket);
 
 					  HAL_Delay(10); //Let it get back to the main loop.
 
@@ -254,15 +258,11 @@ int main(void)
 						  debugData[d] = data[d];
 					  }
 
+					  free(header);
+					  free(data);
+
 					  HAL_Delay(20); //Let it get back to the main loop.
-
-
 				  }
-
-				  free(header);
-				  free(data);
-
-
 			  }
 
 
