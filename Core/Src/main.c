@@ -35,7 +35,7 @@
 /* USER CODE BEGIN PTD */
 
 #define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
-#define CYCLE_COUNT 2//How many times we fill the buffer before stopping.
+#define CYCLE_COUNT 4//How many times we fill the buffer before stopping.
 
 #define PRIME_BLINK_COUNT 3
 #define PRIME_BLINK_TOTAL_TIME_MS 500
@@ -264,42 +264,6 @@ int main(void)
 					  HAL_Delay(20); //Let it get back to the main loop.
 				  }
 			  }
-
-
-			  /*
-			  //TEMP: Make fake packet to test the PC receiving it.
-			  for(int i = 0; i < 4; i++) //IDs
-			  {
-				  for(int j = 0; j < 8; j++)
-				  {
-					  samplePacketHeader header;
-					  header.DeviceID = i * 8 + j;
-					  header.SampleID = i * 8 + j;
-					  header.startTimeUs = i * 1000000;
-					  header.endTimeUs = (i + 1) * 1000000;;
-					  header.AnalogInPinCount = 4;
-					  header.SampleCount = 500;
-
-					  //uint16_t* samples[500];
-					  //void* memory = malloc(sizeof(short));
-					  uint16_t* samples = (uint16_t*)malloc(sizeof(uint16_t)* 500);
-
-
-					  for(int s = 0; s < 500; s++)
-					  {
-						  samples[s] = i * 8 + j;
-					  }
-
-
-					  TransmitSamplePacketToPC(&huart3, header, samples);
-
-					  free(samples);
-
-				  }
-			  }
-			  */
-
-
 
 			  //TODO: These need to go somewhere at the end.
 			  isPrimed = 0;
