@@ -34,7 +34,7 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-#define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
+#define PERIPHERAL_COUNT 2 //How many boards we've got working as peripherals.
 #define CYCLE_COUNT 4//How many times we fill the buffer before stopping.
 
 #define PRIME_BLINK_COUNT 3
@@ -190,6 +190,11 @@ int main(void)
 			  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 			  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
 
+			  //Each peripheral needs its device numbers adjusted to be above the preceeding peripherals. Same with samples.
+			  //Use the below numbers to add to the values in each peripheral after the first, and then add back to it.
+			  int highestDeviceNumber = 0;
+			  int highestSampleNumber = 0;
+
 			  //Calculate how many samples to get per device.
 			  //Technically could be a const but whatever.
 			  //int perDeviceSampleCount = SENSOR_PER_PERIPHERAL * CYCLE_COUNT;
@@ -234,12 +239,40 @@ int main(void)
 					  continue; //In the future, we could log an error here or something.
 				  }
 
+				  int highestDeviceNumberBeforeThisPeripheral = highestDeviceNumber;
+				  int highestSampleNumberBeforeThisPeripheral = highestSampleNumber;
+
 				  //Get each sample header and sample individually.
 				  for(int j = 0; j < totalPackets; j++) //TODO: This is only first four.
 				  {
 					  //Get the header.
 					  samplePacketHeader* header = calloc(sizeof(samplePacketHeader), 1);
 					  RequestSampleHeaderCommand(&hi2c1, address, j, header);
+
+					  //DEBUG
+					  if(i == 2)
+					  {
+						  int x = 1;
+						  x++;
+					  }
+
+
+					  //Change the sample and device numbers according to the peripheral index.
+					  int additiveDeviceNumber = highestDeviceNumberBeforeThisPeripheral + header->DeviceID;
+					  header->DeviceID = additiveDeviceNumber;
+					  if(additiveDeviceNumber > highestDeviceNumber)
+					  {
+						  highestDeviceNumber = additiveDeviceNumber;
+					  }
+
+					  int additiveSampleNumber = highestSampleNumberBeforeThisPeripheral + header->SampleID;
+					  header->SampleID = additiveSampleNumber;
+					  if(additiveSampleNumber > highestSampleNumber)
+					  {
+						  highestSampleNumber = additiveSampleNumber;
+					  }
+
+
 
 					  uint16_t samplesPerPacket = header->SampleCount;
 					  uint16_t* data = calloc(sizeof(uint16_t), samplesPerPacket);
@@ -263,6 +296,10 @@ int main(void)
 
 					  HAL_Delay(20); //Let it get back to the main loop.
 				  }
+
+				  //Increment once more so the next set starts at one higher.
+				  highestDeviceNumber++;
+				  highestSampleNumber++;
 			  }
 
 			  //TODO: These need to go somewhere at the end.
