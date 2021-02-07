@@ -34,8 +34,8 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-#define PERIPHERAL_COUNT 2 //How many boards we've got working as peripherals.
-#define CYCLE_COUNT 4//How many times we fill the buffer before stopping.
+#define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
+#define CYCLE_COUNT 2//How many times we fill the buffer before stopping.
 
 #define PRIME_BLINK_COUNT 3
 #define PRIME_BLINK_TOTAL_TIME_MS 500
@@ -282,7 +282,17 @@ int main(void)
 					  //Get the actual data.
 					  RequestSampleDataCommand(&hi2c1, address, samplesPerPacket, j, data); //i for now, just to get the samples from the first cycle.
 
+					  //Flip the lights to indicate it's sending stuff.
+					  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_SET);
+					  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+
+					  //Transmit the data to the PC.
 					  TransmitSamplePacketToPC(&huart3, *header, data);
+
+					  //Wait a sec to make sure light are seen, then switch them off.
+					  HAL_Delay(30);
+					  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_RESET);
+					  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
 					  //Just for debug.
 					  uint16_t debugData[samplesPerPacket];
@@ -306,6 +316,8 @@ int main(void)
 			  isPrimed = 0;
 			  isStarted = 0;
 		  }
+		  //Make sure green light is on, as we flashed them while uploading.
+		  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_SET);
 	  }
 
     /* USER CODE END WHILE */
