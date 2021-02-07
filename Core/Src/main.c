@@ -35,7 +35,7 @@
 /* USER CODE BEGIN PTD */
 
 #define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
-#define CYCLE_COUNT 2//How many times we fill the buffer before stopping.
+#define CYCLE_COUNT 4//How many times we fill the buffer before stopping.
 
 #define PRIME_BLINK_COUNT 3
 #define PRIME_BLINK_TOTAL_TIME_MS 500
@@ -229,7 +229,7 @@ int main(void)
 				  //If we're here, the device said it's ready to send back the data. So get it.
 
 				  //Wait a short amount of time for the listener to activate again. I guess.
-				  HAL_Delay(10);
+				 // HAL_Delay(10);
 
 				  //Get total number of packets that we need to receive.
 				  uint16_t totalPackets = RequestTotalPacketCountCommand(&hi2c1, address);
@@ -277,7 +277,7 @@ int main(void)
 					  uint16_t samplesPerPacket = header->SampleCount;
 					  uint16_t* data = calloc(sizeof(uint16_t), samplesPerPacket);
 
-					  HAL_Delay(10); //Let it get back to the main loop.
+					  HAL_Delay(5); //Let it get back to the main loop.
 
 					  //Get the actual data.
 					  RequestSampleDataCommand(&hi2c1, address, samplesPerPacket, j, data); //i for now, just to get the samples from the first cycle.
@@ -290,7 +290,7 @@ int main(void)
 					  TransmitSamplePacketToPC(&huart3, *header, data);
 
 					  //Wait a sec to make sure light are seen, then switch them off.
-					  HAL_Delay(30);
+					  HAL_Delay(25);
 					  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_RESET);
 					  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
@@ -304,7 +304,7 @@ int main(void)
 					  free(header);
 					  free(data);
 
-					  HAL_Delay(20); //Let it get back to the main loop.
+					  HAL_Delay(5); //Let it get back to the main loop.
 				  }
 
 				  //Increment once more so the next set starts at one higher.
