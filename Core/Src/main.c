@@ -35,7 +35,7 @@
 /* USER CODE BEGIN PTD */
 
 #define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
-#define CYCLE_COUNT 4//How many times we fill the buffer before stopping.
+#define CYCLE_COUNT 10//How many times we fill the buffer before stopping.
 
 #define PRIME_BLINK_COUNT 3
 #define PRIME_BLINK_TOTAL_TIME_MS 500
@@ -43,6 +43,9 @@
 #define SAMPLE_TO_READ_TIME_MS 300 //How long after we send the signal to sample do we start checking if the peripherals are ready to send.
 
 #define NOT_READY_ADDITIONAL_DELAY_MS 50 //When we ask if a peripheral is done sampling, and it say no, how long we wait before asking again.
+
+#define FIRST_DEVICE_DELAY_MS 30 //What the delay, in milliseconds, will be on the first device after sending the "Start Sampling" command.
+#define DELAY_ADD_PER_DEVICE_MS 10 //How much time, in milliseconds, is added to the delay of each device after the first (cumulative).
 
 /* USER CODE END PTD */
 
@@ -159,7 +162,11 @@ int main(void)
 				  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
 				  {
 					  uint8_t address = i << 1; //Shifted over by one for I2C.
-					  SendSampleParamsCommand(&hi2c1, address, CYCLE_COUNT, 0); //TODO: Manage delay times.
+
+					  //Calculate the delay.
+					  uint8_t delayTimeMS = FIRST_DEVICE_DELAY_MS + (i - 1) * DELAY_ADD_PER_DEVICE_MS; //Subtract one from i since we start at 1, not 0.
+
+					  SendSampleParamsCommand(&hi2c1, address, CYCLE_COUNT, delayTimeMS);
 				  }
 
 				  isPrimed = 1;
