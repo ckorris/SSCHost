@@ -35,7 +35,7 @@
 /* USER CODE BEGIN PTD */
 
 #define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
-#define CYCLE_COUNT 10//How many times we fill the buffer before stopping.
+#define CYCLE_COUNT 12//How many times we fill the buffer before stopping.
 
 #define PRIME_BLINK_COUNT 3
 #define PRIME_BLINK_TOTAL_TIME_MS 500
@@ -44,8 +44,8 @@
 
 #define NOT_READY_ADDITIONAL_DELAY_MS 50 //When we ask if a peripheral is done sampling, and it say no, how long we wait before asking again.
 
-#define FIRST_DEVICE_DELAY_MS 30 //What the delay, in milliseconds, will be on the first device after sending the "Start Sampling" command.
-#define DELAY_ADD_PER_DEVICE_MS 10 //How much time, in milliseconds, is added to the delay of each device after the first (cumulative).
+#define FIRST_DEVICE_DELAY_MS 45 //What the delay, in milliseconds, will be on the first device after sending the "Start Sampling" command.
+#define DELAY_ADD_PER_DEVICE_MS 1 //How much time, in milliseconds, is added to the delay of each device after the first (cumulative).
 
 /* USER CODE END PTD */
 
@@ -243,6 +243,12 @@ int main(void)
 
 				  if(totalPackets == 0)
 				  {
+					  //Flash red once to show error here.
+					  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+					  HAL_Delay(120);
+					  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
+					  HAL_Delay(80);
+
 					  continue; //In the future, we could log an error here or something.
 				  }
 
@@ -255,14 +261,6 @@ int main(void)
 					  //Get the header.
 					  samplePacketHeader* header = calloc(sizeof(samplePacketHeader), 1);
 					  RequestSampleHeaderCommand(&hi2c1, address, j, header);
-
-					  //DEBUG
-					  if(i == 2)
-					  {
-						  int x = 1;
-						  x++;
-					  }
-
 
 					  //Change the sample and device numbers according to the peripheral index.
 					  int additiveDeviceNumber = highestDeviceNumberBeforeThisPeripheral + header->DeviceID;

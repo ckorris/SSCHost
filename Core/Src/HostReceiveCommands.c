@@ -43,7 +43,8 @@ uint16_t ReceiveTotalPacketCount(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddr
 		return 0;
 	}
 
-	uint16_t totalPacketCount = (uint16_t)resultBuf[0]; //Could just return directly but this makes it easier to debug.
+	//uint16_t totalPacketCount = (uint16_t)resultBuf[0]; //Could just return directly but this makes it easier to debug.
+	uint16_t totalPacketCount = ((uint16_t)resultBuf[1] << 8) | resultBuf[0];
 	return totalPacketCount;
 }
 
