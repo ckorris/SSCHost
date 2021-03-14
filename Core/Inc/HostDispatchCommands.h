@@ -4,7 +4,7 @@
 #include "stm32f7xx_hal.h"
 #include "I2CNetworkCommon.h"
 
-#define COMMAND_SEND_TIMEOUT_MS 50 //When sending only the command enum (just one uint8_t) in non-blocking mode how long in ms to wait for timeout.
+#define COMMAND_SEND_TIMEOUT_MS 100 //When sending only the command enum (just one uint8_t) in non-blocking mode how long in ms to wait for timeout.
 
 void SendSampleParamsCommand(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t cycleCount, uint8_t delayMS);
 

@@ -28,24 +28,25 @@
 
 #include "I2CNetworkCommon.h"
 #include "HostDispatchCommands.h"
+#include "TimeHelpers.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
-#define PERIPHERAL_COUNT 1 //How many boards we've got working as peripherals.
-#define CYCLE_COUNT 12//How many times we fill the buffer before stopping.
+#define PERIPHERAL_COUNT 4 //How many boards we've got working as peripherals.
+#define CYCLE_COUNT 4 //How many times we fill the buffer before stopping.
 
 #define PRIME_BLINK_COUNT 3
 #define PRIME_BLINK_TOTAL_TIME_MS 500
 
-#define SAMPLE_TO_READ_TIME_MS 300 //How long after we send the signal to sample do we start checking if the peripherals are ready to send.
+#define SAMPLE_TO_READ_TIME_MS 1000 //How long after we send the signal to sample do we start checking if the peripherals are ready to send.
 
 #define NOT_READY_ADDITIONAL_DELAY_MS 50 //When we ask if a peripheral is done sampling, and it say no, how long we wait before asking again.
 
-#define FIRST_DEVICE_DELAY_MS 45 //What the delay, in milliseconds, will be on the first device after sending the "Start Sampling" command.
-#define DELAY_ADD_PER_DEVICE_MS 1 //How much time, in milliseconds, is added to the delay of each device after the first (cumulative).
+#define FIRST_DEVICE_DELAY_MS 35 //What the delay, in milliseconds, will be on the first device after sending the "Start Sampling" command.
+#define DELAY_ADD_PER_DEVICE_MS 0 //How much time, in milliseconds, is added to the delay of each device after the first (cumulative).
 
 /* USER CODE END PTD */
 
@@ -61,6 +62,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 I2C_HandleTypeDef hi2c1;
+
+TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart3;
 
@@ -78,6 +81,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 //void SendSampleParameters(I2C_HandleTypeDef *hi2c, uint8_t peripheralAddress, uint8_t deviceCount, uint16_t bufferSize, uint8_t cycleCount, uint8_t delayMS);
@@ -126,6 +130,7 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   MX_I2C1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   //Green to indicate this is the host.
@@ -138,6 +143,14 @@ int main(void)
 
   //Confirm we're on.
   PrintUARTMessage(&huart3, "Host Initialized.");
+
+  //Enable register for the timer.
+  TIM2->CR1 = TIM_CR1_CEN;
+
+
+  //Declare array that holds the time in microseconds when we send the signal for each peripheral to start.
+  //This is used later to calculate the offset for their final times and synchronize them.
+  int32_t startTimesUs[4];
 
   /* USER CODE END 2 */
 
@@ -185,11 +198,25 @@ int main(void)
 			  //Turn on red LED to indicate we're dispatching.
 			  HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
 
+			  ResetClock(htim2);
+
 			  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
 			  {
 				  uint8_t address = i << 1; //Shifted over by one for I2C.
 				  BeginSamplingCommand(&hi2c1, address);
+
+				  //Record the time.
+				  uint32_t startTicks = ReadCurrentTicks(htim2);
+				  startTimesUs[i - 1] = TicksToSubSecond(htim2, startTicks, MICROSECOND_DIVIDER);
 			  }
+
+			  //Subtract the first time from each start time element so that they are the offsets.
+			  uint32_t firstTime = startTimesUs[0];
+			  for(int i = 0; i < PERIPHERAL_COUNT; i++)
+			  {
+				  startTimesUs[i] -= firstTime;
+			  }
+
 			  isStarted = 1;
 			  //Allow another sent packet and turn off blue prime indicator LED.
 			  //Wait a short time to make it so the samples are likely ready (but we'll still be asking before receiving).
@@ -203,9 +230,6 @@ int main(void)
 			  int highestSampleNumber = 0;
 
 			  //Calculate how many samples to get per device.
-			  //Technically could be a const but whatever.
-			  //int perDeviceSampleCount = SENSOR_PER_PERIPHERAL * CYCLE_COUNT;
-			  //int samplesPerPacket = ADC_BUFFER_SIZE / SENSOR_PER_PERIPHERAL;
 			  //Go through each peripheral and wait for it to be ready, then receive sample.
 			  for(int i = 1; i <= PERIPHERAL_COUNT; i++)
 			  {
@@ -236,7 +260,7 @@ int main(void)
 				  //If we're here, the device said it's ready to send back the data. So get it.
 
 				  //Wait a short amount of time for the listener to activate again. I guess.
-				 // HAL_Delay(10);
+				  HAL_Delay(5);
 
 				  //Get total number of packets that we need to receive.
 				  uint16_t totalPackets = RequestTotalPacketCountCommand(&hi2c1, address);
@@ -277,7 +301,10 @@ int main(void)
 						  highestSampleNumber = additiveSampleNumber;
 					  }
 
-
+					  //Adjust the start and ennd times based on the offset at which the devive was sent the sample message.
+					  uint32_t startOffset = startTimesUs[i];
+					  header->startTimeUs += startOffset;
+					  header->endTimeUs += startOffset;
 
 					  uint16_t samplesPerPacket = header->SampleCount;
 					  uint16_t* data = calloc(sizeof(uint16_t), samplesPerPacket);
@@ -299,12 +326,14 @@ int main(void)
 					  HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_RESET);
 					  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
+					  /*
 					  //Just for debug.
 					  uint16_t debugData[samplesPerPacket];
 					  for(int d = 0; d < samplesPerPacket; d++)
 					  {
 						  debugData[d] = data[d];
 					  }
+					  */
 
 					  free(header);
 					  free(data);
@@ -437,6 +466,64 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 95;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 4294967295;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
